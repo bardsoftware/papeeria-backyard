@@ -1,0 +1,76 @@
+group 'libbackyard'
+version "${version}"
+
+buildscript {
+    ext.kotlin_version = '1.3.+'
+
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.+'
+    }
+}
+
+apply plugin: 'kotlin'
+apply plugin: 'java'
+apply plugin: 'application'
+apply plugin: 'com.google.protobuf'
+
+repositories {
+    mavenCentral()
+    jcenter()
+}
+
+dependencies {
+    compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.+'
+    compile "com.xenomachina:kotlin-argparser:2.+"
+    compile "com.google.cloud:google-cloud-pubsub:1.+"
+    compile 'com.google.protobuf:protobuf-java:3.+'
+    compile 'com.google.guava:guava:27.+'
+    compile 'org.slf4j:slf4j-api:1.7.+'
+    compile 'ch.qos.logback:logback-classic:1.3.+'
+    compile 'ch.qos.logback:logback-core:1.3.+'
+    compile 'io.grpc:grpc-stub:1.+'
+    compile 'io.grpc:grpc-protobuf:1.+'
+    compile "io.grpc:grpc-netty:1.+"
+    compile 'io.grpc:grpc-netty-shaded:1.+'
+    compile 'io.netty:netty-tcnative-boringssl-static:2.0.20.Final'
+
+}
+
+sourceSets {
+    main {
+        proto {
+            srcDir 'src/main/proto'
+        }
+        java {
+            srcDirs 'src/main/java', 'src/generated/main/java', 'src/generated/main/grpc'
+        }
+    }
+}
+
+protobuf {
+    protoc {
+        artifact = 'com.google.protobuf:protoc:3.5.1'
+        generatedFilesBaseDir = "$projectDir/src/generated"
+    }
+    plugins {
+        grpc {
+            artifact = 'io.grpc:protoc-gen-grpc-java:1.+'
+        }
+    }
+    generateProtoTasks {
+        all()*.plugins {
+            grpc {}
+        }
+    }
+}
+
+compileKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+
+mainClassName = 'com.bardsoftware.papeeria.backend.echo.EchoBackendKt'

@@ -1,0 +1,4 @@
+language: java
+
+notifications:
+  slack: papeeria-team:XVDawu0e0sh9hEDD4WCUBqk3
