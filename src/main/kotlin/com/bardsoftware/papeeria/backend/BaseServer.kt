@@ -34,7 +34,7 @@ import java.util.concurrent.*
 private val LOG = LoggerFactory.getLogger("BaseServer")
 
 private val SHUTDOWN_EXECUTOR = Executors.newSingleThreadExecutor()
-private val DEFAULT_EXECUTOR = ThreadPoolExecutor(
+val DEFAULT_EXECUTOR = ThreadPoolExecutor(
     2, 10,
     60L, TimeUnit.SECONDS,
     Queues.newArrayBlockingQueue(400),

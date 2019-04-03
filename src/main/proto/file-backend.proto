@@ -12,20 +12,20 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-
 syntax = "proto3";
 
-option java_package = "com.bardsoftware.papeeria.backend.demo";
-option java_outer_classname = "EchoProto";
+option java_package = "com.bardsoftware.papeeria.backend";
+option java_outer_classname = "FileProcessingBackendProto";
 
-service Echo {
-    rpc Send(Ping) returns (Pong) {}
+message FileDto {
+    string id = 1;
+    string name = 2;
+    bytes contents = 3;
 }
 
-message Ping {
-    string message = 1;
-}
+message FileRequestDto {
 
-message Pong {
-    string message = 1;
+    repeated FileDto file = 1;
+    string content_hash_record_key = 2;
+    int32 disk_quota_mb = 3;
 }

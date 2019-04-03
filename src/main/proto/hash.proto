@@ -15,17 +15,20 @@ limitations under the License.
 
 syntax = "proto3";
 
+import "file-backend.proto";
+
 option java_package = "com.bardsoftware.papeeria.backend.demo";
-option java_outer_classname = "EchoProto";
+option java_outer_classname = "HashProto";
 
-service Echo {
-    rpc Send(Ping) returns (Pong) {}
+service HashCalculator {
+    rpc Calculate(HashRequest) returns (HashResponse) {}
 }
 
-message Ping {
-    string message = 1;
+message HashRequest {
+    string taskId = 1;
+    FileRequestDto fileRequest = 2;
 }
 
-message Pong {
-    string message = 1;
+message HashResponse {
+    string hash = 1;
 }
