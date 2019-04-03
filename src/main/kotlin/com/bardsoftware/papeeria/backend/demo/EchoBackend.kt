@@ -1,4 +1,4 @@
-package com.bardsoftware.papeeria.backend.echo
+package com.bardsoftware.papeeria.backend.demo
 
 import com.bardsoftware.papeeria.backend.BackendService
 import com.bardsoftware.papeeria.backend.BaseServerArgs
@@ -22,8 +22,8 @@ class EchoMessageReceiver : MessageReceiver {
     println(request)
     consumer.ack()
   }
-
 }
+
 class EchoArgs(parser: ArgParser) : BaseServerArgs(parser) {
   val pongPrefix by parser.storing("--prefix", help="")
 }

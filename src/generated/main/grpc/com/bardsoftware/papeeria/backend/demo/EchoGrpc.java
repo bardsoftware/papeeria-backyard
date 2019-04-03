@@ -1,4 +1,4 @@
-package com.bardsoftware.papeeria.backend.echo;
+package com.bardsoftware.papeeria.backend.demo;
 
 import static io.grpc.MethodDescriptor.generateFullMethodName;
 import static io.grpc.stub.ClientCalls.asyncUnaryCall;
@@ -19,30 +19,30 @@ public final class EchoGrpc {
   public static final String SERVICE_NAME = "Echo";
 
   // Static method descriptors that strictly reflect the proto.
-  private static volatile io.grpc.MethodDescriptor<com.bardsoftware.papeeria.backend.echo.EchoProto.Ping,
-      com.bardsoftware.papeeria.backend.echo.EchoProto.Pong> getSendMethod;
+  private static volatile io.grpc.MethodDescriptor<com.bardsoftware.papeeria.backend.demo.EchoProto.Ping,
+      com.bardsoftware.papeeria.backend.demo.EchoProto.Pong> getSendMethod;
 
   @io.grpc.stub.annotations.RpcMethod(
       fullMethodName = SERVICE_NAME + '/' + "Send",
-      requestType = com.bardsoftware.papeeria.backend.echo.EchoProto.Ping.class,
-      responseType = com.bardsoftware.papeeria.backend.echo.EchoProto.Pong.class,
+      requestType = com.bardsoftware.papeeria.backend.demo.EchoProto.Ping.class,
+      responseType = com.bardsoftware.papeeria.backend.demo.EchoProto.Pong.class,
       methodType = io.grpc.MethodDescriptor.MethodType.UNARY)
-  public static io.grpc.MethodDescriptor<com.bardsoftware.papeeria.backend.echo.EchoProto.Ping,
-      com.bardsoftware.papeeria.backend.echo.EchoProto.Pong> getSendMethod() {
-    io.grpc.MethodDescriptor<com.bardsoftware.papeeria.backend.echo.EchoProto.Ping, com.bardsoftware.papeeria.backend.echo.EchoProto.Pong> getSendMethod;
+  public static io.grpc.MethodDescriptor<com.bardsoftware.papeeria.backend.demo.EchoProto.Ping,
+      com.bardsoftware.papeeria.backend.demo.EchoProto.Pong> getSendMethod() {
+    io.grpc.MethodDescriptor<com.bardsoftware.papeeria.backend.demo.EchoProto.Ping, com.bardsoftware.papeeria.backend.demo.EchoProto.Pong> getSendMethod;
     if ((getSendMethod = EchoGrpc.getSendMethod) == null) {
       synchronized (EchoGrpc.class) {
         if ((getSendMethod = EchoGrpc.getSendMethod) == null) {
-          EchoGrpc.getSendMethod = getSendMethod = 
-              io.grpc.MethodDescriptor.<com.bardsoftware.papeeria.backend.echo.EchoProto.Ping, com.bardsoftware.papeeria.backend.echo.EchoProto.Pong>newBuilder()
+          EchoGrpc.getSendMethod = getSendMethod =
+              io.grpc.MethodDescriptor.<com.bardsoftware.papeeria.backend.demo.EchoProto.Ping, com.bardsoftware.papeeria.backend.demo.EchoProto.Pong>newBuilder()
               .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
               .setFullMethodName(generateFullMethodName(
                   "Echo", "Send"))
               .setSampledToLocalTracing(true)
               .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  com.bardsoftware.papeeria.backend.echo.EchoProto.Ping.getDefaultInstance()))
+                  com.bardsoftware.papeeria.backend.demo.EchoProto.Ping.getDefaultInstance()))
               .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  com.bardsoftware.papeeria.backend.echo.EchoProto.Pong.getDefaultInstance()))
+                  com.bardsoftware.papeeria.backend.demo.EchoProto.Pong.getDefaultInstance()))
                   .setSchemaDescriptor(new EchoMethodDescriptorSupplier("Send"))
                   .build();
           }
@@ -80,8 +80,8 @@ public final class EchoGrpc {
 
     /**
      */
-    public void send(com.bardsoftware.papeeria.backend.echo.EchoProto.Ping request,
-        io.grpc.stub.StreamObserver<com.bardsoftware.papeeria.backend.echo.EchoProto.Pong> responseObserver) {
+    public void send(com.bardsoftware.papeeria.backend.demo.EchoProto.Ping request,
+        io.grpc.stub.StreamObserver<com.bardsoftware.papeeria.backend.demo.EchoProto.Pong> responseObserver) {
       asyncUnimplementedUnaryCall(getSendMethod(), responseObserver);
     }
 
@@ -91,8 +91,8 @@ public final class EchoGrpc {
             getSendMethod(),
             asyncUnaryCall(
               new MethodHandlers<
-                com.bardsoftware.papeeria.backend.echo.EchoProto.Ping,
-                com.bardsoftware.papeeria.backend.echo.EchoProto.Pong>(
+                com.bardsoftware.papeeria.backend.demo.EchoProto.Ping,
+                com.bardsoftware.papeeria.backend.demo.EchoProto.Pong>(
                   this, METHODID_SEND)))
           .build();
     }
@@ -118,8 +118,8 @@ public final class EchoGrpc {
 
     /**
      */
-    public void send(com.bardsoftware.papeeria.backend.echo.EchoProto.Ping request,
-        io.grpc.stub.StreamObserver<com.bardsoftware.papeeria.backend.echo.EchoProto.Pong> responseObserver) {
+    public void send(com.bardsoftware.papeeria.backend.demo.EchoProto.Ping request,
+        io.grpc.stub.StreamObserver<com.bardsoftware.papeeria.backend.demo.EchoProto.Pong> responseObserver) {
       asyncUnaryCall(
           getChannel().newCall(getSendMethod(), getCallOptions()), request, responseObserver);
     }
@@ -145,7 +145,7 @@ public final class EchoGrpc {
 
     /**
      */
-    public com.bardsoftware.papeeria.backend.echo.EchoProto.Pong send(com.bardsoftware.papeeria.backend.echo.EchoProto.Ping request) {
+    public com.bardsoftware.papeeria.backend.demo.EchoProto.Pong send(com.bardsoftware.papeeria.backend.demo.EchoProto.Ping request) {
       return blockingUnaryCall(
           getChannel(), getSendMethod(), getCallOptions(), request);
     }
@@ -171,8 +171,8 @@ public final class EchoGrpc {
 
     /**
      */
-    public com.google.common.util.concurrent.ListenableFuture<com.bardsoftware.papeeria.backend.echo.EchoProto.Pong> send(
-        com.bardsoftware.papeeria.backend.echo.EchoProto.Ping request) {
+    public com.google.common.util.concurrent.ListenableFuture<com.bardsoftware.papeeria.backend.demo.EchoProto.Pong> send(
+        com.bardsoftware.papeeria.backend.demo.EchoProto.Ping request) {
       return futureUnaryCall(
           getChannel().newCall(getSendMethod(), getCallOptions()), request);
     }
@@ -198,8 +198,8 @@ public final class EchoGrpc {
     public void invoke(Req request, io.grpc.stub.StreamObserver<Resp> responseObserver) {
       switch (methodId) {
         case METHODID_SEND:
-          serviceImpl.send((com.bardsoftware.papeeria.backend.echo.EchoProto.Ping) request,
-              (io.grpc.stub.StreamObserver<com.bardsoftware.papeeria.backend.echo.EchoProto.Pong>) responseObserver);
+          serviceImpl.send((com.bardsoftware.papeeria.backend.demo.EchoProto.Ping) request,
+              (io.grpc.stub.StreamObserver<com.bardsoftware.papeeria.backend.demo.EchoProto.Pong>) responseObserver);
           break;
         default:
           throw new AssertionError();
@@ -223,7 +223,7 @@ public final class EchoGrpc {
 
     @java.lang.Override
     public com.google.protobuf.Descriptors.FileDescriptor getFileDescriptor() {
-      return com.bardsoftware.papeeria.backend.echo.EchoProto.getDescriptor();
+      return com.bardsoftware.papeeria.backend.demo.EchoProto.getDescriptor();
     }
 
     @java.lang.Override
