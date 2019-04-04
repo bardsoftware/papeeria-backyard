@@ -32,13 +32,13 @@ open class FileProcessingBackend(
     private val procrustes: Procrustes) {
   private val fetchContext = newFixedThreadPoolContext(args.postgresConnections, "FetchThread")
 
-  fun process(taskId: String, task: FileRequestDto): Path {
+  suspend fun process(taskId: String, task: FileRequestDto, resultChannel: Channel<Path>) {
     val volumePath = procrustes.makeVolume(taskId)
     fetch(task = task, saveTaskConsumer = createSaveTaskConsumer(volumePath))
-    return volumePath
+    resultChannel.send(volumePath)
   }
 
-  fun fetch(task: FileRequestDto, isFetchNeeded: FetchPredicate = { true },
+  suspend fun fetch(task: FileRequestDto, isFetchNeeded: FetchPredicate = { true },
             saveTaskConsumer: SaveTaskConsumer) {
     val taskChannel = Channel<SaveTask>()
     for (file in task.fileList) {
@@ -66,10 +66,12 @@ open class FileProcessingBackend(
       }
     }
     barrier.await()
+    LOG.info("All saved")
   }
 
   fun createSaveTaskConsumer(rootAbsPath: Path): SaveTaskConsumer {
     return { saveTask ->
+      LOG.debug("Saving file {} at {}", saveTask.dto.name, rootAbsPath)
       if (saveTask.fetchError.first) {
         LOG.error("Failed to fetch file content. File={} message={}", saveTask.dto.id, saveTask.fetchError.second)
       } else {
@@ -88,7 +90,7 @@ open class FileProcessingBackend(
     }
   }
 
-  private fun fetchFile(file: FileDto): SaveTask {
+  private suspend fun fetchFile(file: FileDto): SaveTask {
     return try {
       val contents = contentStorage.getContent(file)
       return if (contents == null) {

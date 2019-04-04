@@ -2,15 +2,18 @@ package com.bardsoftware.papeeria.backend
 
 import com.google.common.io.Closer
 import com.zaxxer.hikari.HikariDataSource
+import org.slf4j.LoggerFactory
 import java.io.*
 import java.util.zip.InflaterInputStream
+
+private val LOG = LoggerFactory.getLogger("base.file.content-storage")
 
 /**
  * @author dbarashev@bardsoftware.com
  */
 interface ContentStorage {
   @Throws(ContentStorageException::class)
-  fun getContent(file: FileProcessingBackendProto.FileDto): ByteArray?
+  suspend fun getContent(file: FileProcessingBackendProto.FileDto): ByteArray?
 }
 class ContentStorageException : Exception()
 
@@ -40,7 +43,8 @@ class PostgresContentStorage(args: FileProcessingBackendArgs) : ContentStorage {
     jdbcUrl = "jdbc:postgresql://${args.postgresAddress}"
   }
 
-  override fun getContent(file: FileProcessingBackendProto.FileDto): ByteArray? {
+  override suspend fun getContent(file: FileProcessingBackendProto.FileDto): ByteArray? {
+    LOG.debug("Fetching file id={} name={}", file.id, file.name)
     dataSource.connection.use {
       val stmt = it.prepareStatement("SELECT value FROM FileContent WHERE id=?")
       stmt.setString(1, "${file.id}-data")

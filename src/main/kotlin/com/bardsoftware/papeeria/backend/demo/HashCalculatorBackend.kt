@@ -3,38 +3,39 @@ package com.bardsoftware.papeeria.backend.demo
 import com.bardsoftware.papeeria.backend.*
 import com.google.cloud.pubsub.v1.AckReplyConsumer
 import com.google.cloud.pubsub.v1.MessageReceiver
-import com.google.common.hash.Hashing
 import com.google.protobuf.ByteString
 import com.google.protobuf.util.JsonFormat
 import com.google.pubsub.v1.PubsubMessage
 import com.xenomachina.argparser.ArgParser
 import io.grpc.stub.StreamObserver
-import java.nio.file.FileVisitResult
-import java.nio.file.Files
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.nio.file.Path
-import java.nio.file.SimpleFileVisitor
-import java.nio.file.attribute.BasicFileAttributes
 
 /**
  * @author dbarashev@bardsoftware.com
  */
-class HashCalculatorPubSub(private val server: HashCalculatorServer) : MessageReceiver {
+class HashCalculatorPubSub(private val server: HashCalculatorServer, responseChannel: Channel<BackendServiceResponse>) : MessageReceiver {
   private val responseObserver = object : StreamObserver<HashProto.HashResponse> {
     override fun onError(t: Throwable?) {
-      TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+      println("Error: ")
+      t?.printStackTrace()
     }
 
     override fun onCompleted() {
     }
 
     override fun onNext(value: HashProto.HashResponse) {
-      println("Hash is: ${value.hash}")
+      runBlocking {
+        responseChannel.send(BackendServiceResponse(value, value.requestId))
+      }
     }
 
   }
   override fun receiveMessage(message: PubsubMessage, consumer: AckReplyConsumer) {
-    //val request = HashProto.HashRequest.parseFrom(message.data)
-    val builder = HashProto.HashRequest.newBuilder()
+    val builder = HashProto.HashRequest.newBuilder().setRequestId(message.messageId)
     JsonFormat.parser().merge(message.data.toStringUtf8(), builder)
     val request = builder.build()
     println(request)
@@ -43,32 +44,48 @@ class HashCalculatorPubSub(private val server: HashCalculatorServer) : MessageRe
   }
 }
 
-class HashCalculatorServer(fileProcessingArgs: FileProcessingBackendArgs) : HashCalculatorGrpc.HashCalculatorImplBase() {
+class HashCalculatorServer(fileProcessingArgs: FileProcessingBackendArgs,
+                           dockerStageArgs: DockerStageArgs)
+  : HashCalculatorGrpc.HashCalculatorImplBase() {
 
   private val fileBackend: FileProcessingBackend = FileProcessingBackend(fileProcessingArgs,
       PostgresContentStorage(fileProcessingArgs),
       PlainProcrustes())
+  private val dockerStage = DockerStage(dockerStageArgs)
 
   override fun calculate(request: HashProto.HashRequest, responseObserver: StreamObserver<HashProto.HashResponse>) {
-    val path = fileBackend.process(request.taskId, request.fileRequest)
-    val hash = Hashing.farmHashFingerprint64().newHasher()
-    val visitor = object : SimpleFileVisitor<Path>() {
-      override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
-        val bytes = file.toFile().readBytes()
-        hash.putBytes(bytes)
-        return FileVisitResult.CONTINUE
+    val fetchChannel = Channel<Path>()
+    GlobalScope.launch {
+      fileBackend.process(request.taskId, request.fileRequest, fetchChannel)
+    }
+
+    GlobalScope.launch {
+      val dockerChannel = Channel<Long>()
+      val path = fetchChannel.receive()
+      dockerStage.process(
+          DockerTask(path, listOf("bash", "-c", "find /workspace -type f -exec md5sum {} \\; | sort -k 2 | md5sum > /workspace/${request.taskId}.stdout")),
+          dockerChannel)
+      val exitCode = dockerChannel.receive()
+      if (exitCode == 0L) {
+        val stdout = path.resolve("${request.taskId}.stdout").toFile().readText()
+        val response = HashProto.HashResponse.newBuilder()
+            .setRequestId(request.requestId)
+            .setHash(stdout)
+            .build()
+        responseObserver.onNext(response)
+      } else {
+        responseObserver.onError(Exception("Docker failed with exit code $exitCode"))
       }
     }
-    Files.walkFileTree(path, visitor)
-    val response = HashProto.HashResponse.newBuilder().setHash(hash.hash().toString()).build()
-    responseObserver.onNext(response)
   }
 }
 
 class Args(parser: ArgParser) {
   val fileArgs = FileProcessingBackendArgs(parser)
   val serverArgs = BaseServerArgs(parser)
+  val dockerArgs = DockerStageArgs(parser)
 }
+
 fun main(args: Array<String>) {
   val parsedArgs = Args(ArgParser(args))
 
@@ -92,10 +109,15 @@ fun main(args: Array<String>) {
   println("Try sending me this message:")
   println(JsonFormat.printer().print(demoReq))
 
+  val responseChannel = Channel<BackendServiceResponse>()
   start(parsedArgs.serverArgs,
       service = BackendService(
           grpc = null,
-          pubsub = HashCalculatorPubSub(HashCalculatorServer(parsedArgs.fileArgs))
+          pubsub = HashCalculatorPubSub(
+              HashCalculatorServer(parsedArgs.fileArgs, parsedArgs.dockerArgs),
+              responseChannel
+          ),
+          responseChannel = responseChannel
       ),
       serverName = "HashCalculator"
   )

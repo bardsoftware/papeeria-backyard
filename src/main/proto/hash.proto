@@ -25,10 +25,12 @@ service HashCalculator {
 }
 
 message HashRequest {
-    string taskId = 1;
-    FileRequestDto fileRequest = 2;
+    string requestId = 1;
+    string taskId = 2;
+    FileRequestDto fileRequest = 3;
 }
 
 message HashResponse {
-    string hash = 1;
+    string requestId = 1;
+    string hash = 2;
 }

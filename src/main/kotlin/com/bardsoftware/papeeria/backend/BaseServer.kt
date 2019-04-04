@@ -14,12 +14,20 @@ limitations under the License.
  */
 package com.bardsoftware.papeeria.backend
 
+import com.google.api.core.ApiFutureCallback
+import com.google.api.core.ApiFutures
 import com.google.cloud.ServiceOptions
 import com.google.cloud.pubsub.v1.MessageReceiver
+import com.google.cloud.pubsub.v1.Publisher
 import com.google.cloud.pubsub.v1.Subscriber
 import com.google.common.base.Preconditions
 import com.google.common.collect.Queues
+import com.google.protobuf.MessageLite
+import com.google.protobuf.MessageOrBuilder
+import com.google.protobuf.util.JsonFormat
 import com.google.pubsub.v1.ProjectSubscriptionName
+import com.google.pubsub.v1.ProjectTopicName
+import com.google.pubsub.v1.PubsubMessage
 import com.xenomachina.argparser.ArgParser
 import com.xenomachina.argparser.default
 import com.xenomachina.argparser.mainBody
@@ -27,6 +35,11 @@ import io.grpc.BindableService
 import io.grpc.Server
 import io.grpc.internal.GrpcUtil
 import io.grpc.netty.NettyServerBuilder
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.newFixedThreadPoolContext
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.concurrent.*
@@ -43,6 +56,7 @@ val DEFAULT_EXECUTOR = ThreadPoolExecutor(
 private val PROJECT_ID = ServiceOptions.getDefaultProjectId()
 
 open class BaseServer(
+    arg: BaseServerArgs,
     grpcPort: Int,
     service: BindableService? = null,
     val executor: ExecutorService = DEFAULT_EXECUTOR,
@@ -50,6 +64,8 @@ open class BaseServer(
     sslKey: File? = null) {
 
   private val server: Server
+  private val publisher: Publisher?
+  private val publisherContext = newFixedThreadPoolContext(5, "PublisherThread")
 
   init {
     var builder = NettyServerBuilder.forPort(grpcPort)
@@ -61,6 +77,12 @@ open class BaseServer(
     }
     builder = builder.executor(this.executor)
     this.server = builder.build()
+    if (arg.pub?.isEmpty() == false) {
+      val serviceTopicName = ProjectTopicName.of(PROJECT_ID, arg.pub)
+      this.publisher = Publisher.newBuilder(serviceTopicName).build()
+    } else {
+      this.publisher = null
+    }
   }
 
   fun start() {
@@ -78,6 +100,30 @@ open class BaseServer(
     subscriber.startAsync().awaitRunning()
   }
 
+  fun publish(msg: MessageLite, requestId: String) {
+    if (msg is MessageOrBuilder) {
+      println("Publishing:")
+      println(JsonFormat.printer().print(msg))
+    }
+    this.publisher?.let {pubsub ->
+      val pubsubMessage = PubsubMessage.newBuilder()
+          .setData(msg.toByteString())
+          .putAttributes("requestId", requestId)
+          .build()
+      val future = pubsub.publish(pubsubMessage)
+      ApiFutures.addCallback(future, object : ApiFutureCallback<String> {
+        override fun onFailure(throwable: Throwable) {
+          LOG.error("Failure when publishing response to request $requestId", throwable)
+        }
+
+        override fun onSuccess(messageId: String) {
+          LOG.debug("Published $messageId in response to request $requestId")
+        }
+      }, this.executor)
+    }
+
+  }
+
   private fun stop() {
     this.executor.shutdown()
     this.server.shutdown()
@@ -86,11 +132,26 @@ open class BaseServer(
   fun blockUntilShutDown() {
     this.server.awaitTermination()
   }
+
+  fun consumeBackendResponses(responseChannel: Channel<BackendServiceResponse>) {
+    GlobalScope.launch(publisherContext) {
+      responseChannel.consumeEach { resp ->
+        publish(resp.message, resp.requestId)
+      }
+    }
+  }
 }
+
+
+data class BackendServiceResponse(
+    val message: MessageLite,
+    val requestId: String
+)
 
 data class BackendService(
     val grpc: BindableService?,
-    val pubsub: MessageReceiver?
+    val pubsub: MessageReceiver?,
+    var responseChannel: Channel<BackendServiceResponse>
 )
 
 fun start(arg: BaseServerArgs, service: BackendService, serverName: String) = mainBody {
@@ -101,6 +162,7 @@ fun start(arg: BaseServerArgs, service: BackendService, serverName: String) = ma
         if (arg.certChain != null && arg.privateKey != null) {
           LOG.info("Starting $serverName in SECURE mode")
           BaseServer(
+              arg = arg,
               grpcPort = arg.port,
               service = it,
               sslCert = File(arg.certChain),
@@ -108,7 +170,7 @@ fun start(arg: BaseServerArgs, service: BackendService, serverName: String) = ma
           )
         } else {
           LOG.info("Starting $serverName in INSECURE mode")
-          BaseServer(grpcPort = arg.port, service = it)
+          BaseServer(arg = arg, grpcPort = arg.port, service = it)
         }
     LOG.info("Listening on port ${arg.port}")
     server.start()
@@ -120,12 +182,13 @@ fun start(arg: BaseServerArgs, service: BackendService, serverName: String) = ma
   }
   service.pubsub?.let {
     LOG.info("Listening to PubSub subscription ${arg.sub!!}")
-    val server = baseServer ?: BaseServer(grpcPort = arg.port).also {
+    val server = baseServer ?: BaseServer(arg = arg, grpcPort = arg.port).also {
       Runtime.getRuntime().addShutdownHook(Thread(Runnable {
         onShutdown.complete(null)
       }))
     }
     server.subscribe(arg.sub!!, it)
+    server.consumeBackendResponses(service.responseChannel)
   }
   onShutdown.get()
 }

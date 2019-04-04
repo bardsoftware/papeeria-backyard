@@ -8,6 +8,7 @@ import com.google.cloud.pubsub.v1.MessageReceiver
 import com.google.pubsub.v1.PubsubMessage
 import com.xenomachina.argparser.ArgParser
 import io.grpc.stub.StreamObserver
+import kotlinx.coroutines.channels.Channel
 
 class EchoServer(val prefix: String) : EchoGrpc.EchoImplBase() {
   override fun send(request: EchoProto.Ping, responseObserver: StreamObserver<EchoProto.Pong>) {
@@ -34,7 +35,8 @@ fun main(args: Array<String>) {
   start(echoArgs,
       service = BackendService(
           grpc = EchoServer(echoArgs.pongPrefix),
-          pubsub = EchoMessageReceiver()
+          pubsub = EchoMessageReceiver(),
+          responseChannel = Channel(0)
       ),
       serverName = "Echo"
   )
