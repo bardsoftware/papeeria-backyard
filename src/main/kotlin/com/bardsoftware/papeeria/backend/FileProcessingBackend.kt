@@ -21,7 +21,7 @@ data class SaveTask(val dto: FileDto,
 typealias FetchPredicate = (FileDto) -> Boolean
 typealias SaveTaskConsumer = (SaveTask) -> Unit
 
-private val LOG = LoggerFactory.getLogger("FileProcessingBackend")
+private val LOG = LoggerFactory.getLogger("base.file")
 
 /**
  * @author dbarashev@bardsoftware.com

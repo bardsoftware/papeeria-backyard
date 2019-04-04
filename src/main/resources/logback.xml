@@ -1,0 +1,36 @@
+<configuration debug="false" scan="true">
+
+    <property name="LOG_DIRECTORY" value="/var/log/cosmas" />
+    <!-- This will take the value of %X (which is MDC), insert it into [] and replace it
+    with empty string if it turns out to be exactly [] (that is, MDC was empty) -->
+    <variable scope="context" name="mdcValues" value="%replace([%X]){'\\[\\]', ''}"/>
+    <property name="LOG_PATTERN" value="%d{HH:mm:ss.SSS} [%thread] [%level{5}] [%logger{50}] %msg ${mdcValues}%n" />
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <layout>
+            <pattern>${LOG_PATTERN}</pattern>
+        </layout>
+    </appender>
+
+    <appender name="FILE"
+              class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIRECTORY}/backend.log</file>
+        <layout>
+            <pattern>${LOG_PATTERN}</pattern>
+        </layout>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- rollover hourly -->
+            <fileNamePattern>${LOG_DIRECTORY}/archived/backend.%d{yyyy-MM-dd:HH}.log.zip</fileNamePattern>
+            <maxHistory>24</maxHistory>
+        </rollingPolicy>
+    </appender>
+
+    <root level="WARN">
+    </root>
+
+    <logger name="base" level="debug">
+        <appender-ref ref="FILE" />
+        <appender-ref ref="STDOUT" />
+    </logger>
+</configuration>

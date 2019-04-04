@@ -33,8 +33,6 @@ fun inflate(compressed: ByteArray): ByteArray {
   return inflate(ByteArrayInputStream(compressed))
 }
 
-private val driverClass = Class.forName("org.postgresql.Driver")
-
 class PostgresContentStorage(args: FileProcessingBackendArgs) : ContentStorage {
   private val dataSource = HikariDataSource().apply {
     username = args.postgresUser

@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.concurrent.*
 
-private val LOG = LoggerFactory.getLogger("BaseServer")
+private val LOG = LoggerFactory.getLogger("base.server")
 
 private val SHUTDOWN_EXECUTOR = Executors.newSingleThreadExecutor()
 val DEFAULT_EXECUTOR = ThreadPoolExecutor(
