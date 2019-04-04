@@ -36,7 +36,7 @@ fun inflate(compressed: ByteArray): ByteArray {
   return inflate(ByteArrayInputStream(compressed))
 }
 
-class PostgresContentStorage(args: FileProcessingBackendArgs) : ContentStorage {
+class PostgresContentStorage(args: FileStageArgs) : ContentStorage {
   private val dataSource = HikariDataSource().apply {
     username = args.postgresUser
     password = args.postgresPassword

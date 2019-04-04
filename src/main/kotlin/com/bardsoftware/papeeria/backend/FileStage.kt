@@ -13,21 +13,21 @@ import java.lang.Integer.min
 import java.nio.file.Path
 import java.util.concurrent.CountDownLatch
 
-data class SaveTask(val dto: FileDto,
+data class FileTask(val dto: FileDto,
                     val contents: ByteArray,
                     val isSavedLocally: Boolean,
                     val fetchError: Pair<Boolean, String?> = false to null)
 
 typealias FetchPredicate = (FileDto) -> Boolean
-typealias SaveTaskConsumer = (SaveTask) -> Unit
+typealias SaveTaskConsumer = (FileTask) -> Unit
 
 private val LOG = LoggerFactory.getLogger("base.file")
 
 /**
  * @author dbarashev@bardsoftware.com
  */
-open class FileProcessingBackend(
-    private val args: FileProcessingBackendArgs,
+class FileStage(
+    private val args: FileStageArgs,
     private val contentStorage: ContentStorage,
     private val procrustes: Procrustes) {
   private val fetchContext = newFixedThreadPoolContext(args.postgresConnections, "FetchThread")
@@ -40,18 +40,18 @@ open class FileProcessingBackend(
 
   suspend fun fetch(task: FileRequestDto, isFetchNeeded: FetchPredicate = { true },
             saveTaskConsumer: SaveTaskConsumer) {
-    val taskChannel = Channel<SaveTask>()
+    val taskChannel = Channel<FileTask>()
     for (file in task.fileList) {
       GlobalScope.launch(fetchContext) {
         if (!file.contents.isEmpty) {
-          taskChannel.send(SaveTask(file, file.contents.toByteArray(), isSavedLocally = false))
+          taskChannel.send(FileTask(file, file.contents.toByteArray(), isSavedLocally = false))
           return@launch
         }
 
         if (isFetchNeeded(file)) {
           taskChannel.send(fetchFile(file))
         } else {
-          taskChannel.send(SaveTask(file, ByteArray(0), isSavedLocally = true))
+          taskChannel.send(FileTask(file, ByteArray(0), isSavedLocally = true))
         }
       }
     }
@@ -90,23 +90,23 @@ open class FileProcessingBackend(
     }
   }
 
-  private suspend fun fetchFile(file: FileDto): SaveTask {
+  private suspend fun fetchFile(file: FileDto): FileTask {
     return try {
       val contents = contentStorage.getContent(file)
       return if (contents == null) {
-        SaveTask(file, ByteArray(0), false, true to "File not found")
+        FileTask(file, ByteArray(0), false, true to "File not found")
       } else {
-        SaveTask(file, contents, false)
+        FileTask(file, contents, false)
       }
     } catch (e: ContentStorageException) {
       LOG.error("Failed to fetch contents of file={}", file.id, e)
-      SaveTask(file, ByteArray(0), false, true to e.message)
+      FileTask(file, ByteArray(0), false, true to e.message)
     }
   }
 }
 
 
-class FileProcessingBackendArgs(parser: ArgParser) {
+class FileStageArgs(parser: ArgParser) {
   val postgresAddress by parser.storing("--pg-address", help = "PostgreSQL server address").default { "localhost" }
   val postgresPassword by parser.storing("--pg-password", help = "PostgreSQL password").default { "foobar" }
   val postgresUser by parser.storing("--pg-user", help = "PostgreSQL user").default { "papeeria" }

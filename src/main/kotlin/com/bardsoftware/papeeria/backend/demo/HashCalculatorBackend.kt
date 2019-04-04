@@ -4,6 +4,7 @@ import com.bardsoftware.papeeria.backend.*
 import com.google.cloud.pubsub.v1.AckReplyConsumer
 import com.google.cloud.pubsub.v1.MessageReceiver
 import com.google.protobuf.ByteString
+import com.google.protobuf.InvalidProtocolBufferException
 import com.google.protobuf.util.JsonFormat
 import com.google.pubsub.v1.PubsubMessage
 import com.xenomachina.argparser.ArgParser
@@ -36,27 +37,40 @@ class HashCalculatorPubSub(private val server: HashCalculatorServer, responseCha
   }
   override fun receiveMessage(message: PubsubMessage, consumer: AckReplyConsumer) {
     val builder = HashProto.HashRequest.newBuilder().setRequestId(message.messageId)
-    JsonFormat.parser().merge(message.data.toStringUtf8(), builder)
-    val request = builder.build()
-    println(request)
-    consumer.ack()
-    server.calculate(request, responseObserver)
+    try {
+      builder.mergeFrom(message.data)
+      consumer.ack()
+      val request = builder.build()
+      server.calculate(request, responseObserver)
+      return
+    } catch (ex: InvalidProtocolBufferException) {
+      // That's fine, let's try JSON now
+    }
+    try {
+      JsonFormat.parser().merge(message.data.toStringUtf8(), builder)
+      consumer.ack()
+      val request = builder.build()
+      server.calculate(request, responseObserver)
+    } catch (ex: InvalidProtocolBufferException) {
+      println("Failed to parse message ${message.messageId}, tried both binary and json formats")
+    }
   }
 }
 
-class HashCalculatorServer(fileProcessingArgs: FileProcessingBackendArgs,
+class HashCalculatorServer(fileStageArgs: FileStageArgs,
                            dockerStageArgs: DockerStageArgs)
   : HashCalculatorGrpc.HashCalculatorImplBase() {
 
-  private val fileBackend: FileProcessingBackend = FileProcessingBackend(fileProcessingArgs,
-      PostgresContentStorage(fileProcessingArgs),
+  private val fileStage: FileStage = FileStage(fileStageArgs,
+      PostgresContentStorage(fileStageArgs),
       PlainProcrustes())
   private val dockerStage = DockerStage(dockerStageArgs)
 
-  override fun calculate(request: HashProto.HashRequest, responseObserver: StreamObserver<HashProto.HashResponse>) {
+  override fun calculate(request: HashProto.HashRequest,
+                         responseObserver: StreamObserver<HashProto.HashResponse>) {
     val fetchChannel = Channel<Path>()
     GlobalScope.launch {
-      fileBackend.process(request.taskId, request.fileRequest, fetchChannel)
+      fileStage.process(request.taskId, request.fileRequest, fetchChannel)
     }
 
     GlobalScope.launch {
@@ -81,7 +95,7 @@ class HashCalculatorServer(fileProcessingArgs: FileProcessingBackendArgs,
 }
 
 class Args(parser: ArgParser) {
-  val fileArgs = FileProcessingBackendArgs(parser)
+  val fileArgs = FileStageArgs(parser)
   val serverArgs = BaseServerArgs(parser)
   val dockerArgs = DockerStageArgs(parser)
 }
