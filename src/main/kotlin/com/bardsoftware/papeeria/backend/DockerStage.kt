@@ -11,7 +11,10 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.newSingleThreadContext
 import org.slf4j.LoggerFactory
+import java.math.BigDecimal
 import java.nio.file.Path
+
+private val NANO = 1000000000L
 
 data class DockerTask(val workspaceRoot: Path, val dockerCmdArgs: List<String>)
 /**
@@ -26,6 +29,10 @@ class DockerStage(val args: DockerStageArgs) {
 
     val hostConfig = HostConfig.builder()
         .appendBinds("${task.workspaceRoot.toAbsolutePath()}:/workspace")
+        .nanoCpus(args.dockerCpu.toBigDecimal()
+            .multiply(BigDecimal.valueOf(NANO))
+            .toLong())
+        .memory(args.dockerMem.toLong())
         .build()
 
     val containerConfig = ContainerConfig.builder()
@@ -63,6 +70,8 @@ class DockerStage(val args: DockerStageArgs) {
 
 class DockerStageArgs(parser: ArgParser) {
   val dockerImage by parser.storing("--docker-image", help = "Docker image to run").default { "" }
+  val dockerCpu by parser.storing("--docker-cpus", help = "Container CPU limit").default { "1.0" }
+  val dockerMem by parser.storing("--docker-mem", help = "Container memory limit")
 }
 
 fun getDefaultDockerClient(): DefaultDockerClient {

@@ -12,20 +12,25 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 syntax = "proto3";
 
-option java_package = "com.bardsoftware.papeeria.backend";
-option java_outer_classname = "FileProcessingBackendProto";
+import "com/bardsoftware/papeeria/backend/file-backend.proto";
 
-message FileDto {
-    string id = 1;
-    string name = 2;
-    bytes contents = 3;
+package com.bardsoftware.papeeria.backend.demo;
+option java_outer_classname = "HashProto";
+
+service HashCalculator {
+    rpc Calculate(HashRequest) returns (HashResponse) {}
 }
 
-message FileRequestDto {
+message HashRequest {
+    string requestId = 1;
+    string taskId = 2;
+    FileRequestDto fileRequest = 3;
+}
 
-    repeated FileDto file = 1;
-    string content_hash_record_key = 2;
-    int32 disk_quota_mb = 3;
+message HashResponse {
+    string requestId = 1;
+    string hash = 2;
 }

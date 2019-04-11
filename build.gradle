@@ -23,12 +23,19 @@ repositories {
     jcenter()
 }
 
+configurations {
+    exportedClasspath
+    libprotoImplementation
+    libprotoExported
+}
+
 dependencies {
+    libprotoImplementation 'com.google.protobuf:protobuf-java:3.+'
+    libprotoImplementation 'io.grpc:grpc-protobuf:1.19.+'
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.1.+'
     compile "com.xenomachina:kotlin-argparser:2.+"
     compile "com.google.cloud:google-cloud-pubsub:1.+"
-    compile 'com.google.protobuf:protobuf-java:3.+'
     compile 'com.google.guava:guava:27.+'
     compile 'com.google.auth:google-auth-library-oauth2-http:0.15.0'
 
@@ -40,27 +47,31 @@ dependencies {
     compile 'ch.qos.logback:logback-core:1.3.+'
     compile 'io.grpc:grpc-core:1.19.+'
     compile 'io.grpc:grpc-stub:1.19.+'
-    compile 'io.grpc:grpc-protobuf:1.19.+'
     compile "io.grpc:grpc-netty:1.19.+"
     compile 'io.grpc:grpc-netty-shaded:1.19.+'
     compile 'io.netty:netty-tcnative-boringssl-static:2.0.20.Final'
 
+    compile configurations.libprotoImplementation
+    exportedClasspath configurations.compileClasspath
 }
 
 sourceSets {
     main {
         proto {
-            srcDir 'src/main/proto'
         }
         java {
-            srcDirs 'src/main/java', 'src/generated/main/java', 'src/generated/main/grpc'
+        }
+    }
+    libproto {
+        java {
+            srcDirs "$projectDir/src/generated/main/java"
         }
     }
 }
 
 protobuf {
     protoc {
-        artifact = 'com.google.protobuf:protoc:3.5.1'
+        artifact = 'com.google.protobuf:protoc:3.+'
         generatedFilesBaseDir = "$projectDir/src/generated"
     }
     plugins {
@@ -88,3 +99,17 @@ run {
 jar {
     exclude "com/bardsoftware/papeeria/backend/demo/**"
 }
+
+task libproto(type: Jar) {
+    dependsOn = ["compileLibprotoJava"]
+    from sourceSets.libproto.output.classesDirs
+    archiveName = "libbackyard-proto-${version}.jar"
+    destinationDir = file("$buildDir/libs")
+}
+
+artifacts {
+    exportedClasspath jar
+    libprotoExported libproto
+}
+
+
