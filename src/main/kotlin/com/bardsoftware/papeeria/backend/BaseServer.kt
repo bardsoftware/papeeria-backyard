@@ -23,8 +23,6 @@ import com.google.cloud.pubsub.v1.Subscriber
 import com.google.common.base.Preconditions
 import com.google.common.collect.Queues
 import com.google.protobuf.MessageLite
-import com.google.protobuf.MessageOrBuilder
-import com.google.protobuf.util.JsonFormat
 import com.google.pubsub.v1.ProjectSubscriptionName
 import com.google.pubsub.v1.ProjectTopicName
 import com.google.pubsub.v1.PubsubMessage
@@ -101,10 +99,6 @@ open class BaseServer(
   }
 
   fun publish(msg: MessageLite, requestId: String) {
-    if (msg is MessageOrBuilder) {
-      println("Publishing:")
-      println(JsonFormat.printer().print(msg))
-    }
     this.publisher?.let {pubsub ->
       val pubsubMessage = PubsubMessage.newBuilder()
           .setData(msg.toByteString())

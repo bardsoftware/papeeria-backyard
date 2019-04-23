@@ -32,11 +32,12 @@ class DockerStage(val args: DockerStageArgs) {
         .nanoCpus(args.dockerCpu.toBigDecimal()
             .multiply(BigDecimal.valueOf(NANO))
             .toLong())
-        .memory(args.dockerMem.toLong())
+        .memory(args.dockerMem.toLong() * (1 shl 20))
         .build()
 
     val containerConfig = ContainerConfig.builder()
         .image(args.dockerImage)
+        .workingDir("/workspace")
         .cmd(task.dockerCmdArgs)
         .hostConfig(hostConfig)
         .build()
@@ -71,7 +72,7 @@ class DockerStage(val args: DockerStageArgs) {
 class DockerStageArgs(parser: ArgParser) {
   val dockerImage by parser.storing("--docker-image", help = "Docker image to run").default { "" }
   val dockerCpu by parser.storing("--docker-cpus", help = "Container CPU limit").default { "1.0" }
-  val dockerMem by parser.storing("--docker-mem", help = "Container memory limit")
+  val dockerMem by parser.storing("--docker-mem", help = "Container memory limit in megabytes").default { "64" }
 }
 
 fun getDefaultDockerClient(): DefaultDockerClient {
