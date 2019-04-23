@@ -47,7 +47,7 @@ class FileStage(
   private val fetchContext = newFixedThreadPoolContext(args.postgresConnections, "FetchThread")
 
   suspend fun process(taskId: String, task: FileRequestDto, resultChannel: Channel<Path>) {
-    val volumePath = procrustes.makeVolume(taskId)
+    val volumePath = procrustes.makeVolume(ProcrustesVolumeRequest(id = taskId))
     fetch(task = task, saveTaskConsumer = createSaveTaskConsumer(volumePath))
     resultChannel.send(volumePath)
   }
