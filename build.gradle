@@ -1,5 +1,5 @@
 group 'com.bardsoftware.papeeria.backend'
-version "2019.04.09"
+version "SNAPSHOT"
 
 buildscript {
     ext.kotlin_version = '1.3.+'
@@ -120,6 +120,12 @@ artifacts {
 
 
 publishing {
+    repositories {
+        maven {
+            name "papeeria-maven"
+            url "gcs://papeeria-maven-repo/maven2"
+        }
+    }
     publications {
         mavenMidasProto(MavenPublication) {
             artifactId = 'libbackyard-proto'

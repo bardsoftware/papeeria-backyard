@@ -145,7 +145,7 @@ data class BackendServiceResponse(
 data class BackendService(
     val grpc: BindableService?,
     val pubsub: MessageReceiver?,
-    var responseChannel: Channel<BackendServiceResponse>
+    var responseChannel: Channel<BackendServiceResponse>?
 )
 
 fun start(arg: BaseServerArgs, service: BackendService, serverName: String) = mainBody {
@@ -182,7 +182,9 @@ fun start(arg: BaseServerArgs, service: BackendService, serverName: String) = ma
       }))
     }
     server.subscribe(arg.sub!!, it)
-    server.consumeBackendResponses(service.responseChannel)
+    service.responseChannel?.let { channel ->
+      server.consumeBackendResponses(channel)
+    }
   }
   onShutdown.get()
 }

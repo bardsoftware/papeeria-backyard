@@ -20,13 +20,19 @@ import com.spotify.docker.client.messages.ContainerConfig
 import com.spotify.docker.client.messages.HostConfig
 import com.xenomachina.argparser.ArgParser
 import com.xenomachina.argparser.default
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.newSingleThreadContext
 import org.slf4j.LoggerFactory
+import java.io.PipedInputStream
+import java.io.PipedOutputStream
+import java.io.PrintWriter
 import java.math.BigDecimal
 import java.nio.file.Path
+import java.util.*
+import java.util.concurrent.Executors
 
 private val NANO = 1000000000L
 
@@ -35,26 +41,30 @@ data class DockerTask(val workspaceRoot: Path, val dockerCmdArgs: List<String>)
  * @author dbarashev@bardsoftware.com
  */
 class DockerStage(val args: DockerStageArgs) {
+  private val logsExecutor = Executors.newSingleThreadExecutor()
   private val dockerContext = newSingleThreadContext("DockerThread")
   private val docker = getDefaultDockerClient()
 
-  suspend fun process(task: DockerTask, outputChannel: Channel<Long>) {
+  suspend fun process(
+      task: DockerTask, exitCodeChannel: Channel<Long>,
+      out: BaseOutput,
+      configCode: (hostConfig: HostConfig.Builder, containerConfig: ContainerConfig.Builder) -> Unit = { _, _ -> }) {
     LOG.debug("Running docker task {}", task)
 
-    val hostConfig = HostConfig.builder()
+    val hostConfigBuilder = HostConfig.builder()
         .appendBinds("${task.workspaceRoot.toAbsolutePath()}:/workspace")
         .nanoCpus(args.dockerCpu.toBigDecimal()
             .multiply(BigDecimal.valueOf(NANO))
             .toLong())
         .memory(args.dockerMem.toLong() * (1 shl 20))
-        .build()
 
-    val containerConfig = ContainerConfig.builder()
+    val containerConfigBuilder = ContainerConfig.builder()
         .image(args.dockerImage)
         .workingDir("/workspace")
         .cmd(task.dockerCmdArgs)
-        .hostConfig(hostConfig)
-        .build()
+    configCode(hostConfigBuilder, containerConfigBuilder)
+    val hostConfig = hostConfigBuilder.build()
+    val containerConfig = containerConfigBuilder.hostConfig(hostConfig).build()
 
     GlobalScope.launch(dockerContext) {
       var containerId: String? = null
@@ -64,22 +74,30 @@ class DockerStage(val args: DockerStageArgs) {
         val creation = this@DockerStage.docker.createContainer(containerConfig)
         containerId = creation.id()
         LOG.debug("Container id=$containerId")
+        attachOutput(containerId!!, out)
         this@DockerStage.docker.startContainer(containerId)
         val exitCode = this@DockerStage.docker.waitContainer(containerId)
         LOG.debug("Exit code =$exitCode")
-        outputChannel.send(exitCode.statusCode())
+        exitCodeChannel.send(exitCode.statusCode())
       } catch (e: Exception) {
         LOG.error("DockerStage failed", e)
       } finally {
         containerId?.let {
-          this@DockerStage.docker.logs(it, DockerClient.LogsParam.stdout(), DockerClient.LogsParam.stderr()).use { logs ->
-            println(logs.readFully())
-          }
           this@DockerStage.docker.stopContainer(it, 0)
           this@DockerStage.docker.removeContainer(it)
         }
       }
     }
+  }
+
+  fun attachOutput(containerId: String, out: BaseOutput) {
+    logsExecutor.submit {
+      docker.attachContainer(containerId,
+                   DockerClient.AttachParameter.LOGS, DockerClient.AttachParameter.STDOUT,
+                   DockerClient.AttachParameter.STDERR, DockerClient.AttachParameter.STREAM)
+                 .attach(out.stdoutPipe, out.stderrPipe)
+    }
+    out.attach()
   }
 }
 
@@ -87,6 +105,55 @@ class DockerStageArgs(parser: ArgParser) {
   val dockerImage by parser.storing("--docker-image", help = "Docker image to run").default { "" }
   val dockerCpu by parser.storing("--docker-cpus", help = "Container CPU limit").default { "1.0" }
   val dockerMem by parser.storing("--docker-mem", help = "Container memory limit in megabytes").default { "64" }
+}
+
+abstract class BaseOutput {
+  protected val stdout = PipedInputStream()
+  protected val stderr = PipedInputStream()
+  val stdoutPipe = PipedOutputStream(stdout)
+  val stderrPipe = PipedOutputStream(stderr)
+
+  abstract fun attach()
+}
+
+class ConsoleOutput : BaseOutput() {
+  override fun attach() {
+      // Print docker outputs and errors
+      GlobalScope.launch(Dispatchers.IO) {
+        Scanner(stdout).use { scanner ->
+          while (scanner.hasNextLine()) {
+            println(scanner.nextLine())
+          }
+        }
+      }
+      GlobalScope.launch(Dispatchers.IO) {
+        Scanner(stderr).use { scanner ->
+          while (scanner.hasNextLine()) {
+            println(scanner.nextLine())
+          }
+        }
+      }
+  }
+}
+
+class FileOutput(val fileOut: PrintWriter) : BaseOutput() {
+  override fun attach() {
+    GlobalScope.launch(Dispatchers.IO) {
+      Scanner(stdout).use { scanner ->
+        while (scanner.hasNextLine()) {
+          fileOut.println(scanner.nextLine())
+        }
+      }
+    }
+    GlobalScope.launch(Dispatchers.IO) {
+      Scanner(stderr).use { scanner ->
+        while (scanner.hasNextLine()) {
+          fileOut.println(scanner.nextLine())
+        }
+      }
+    }
+  }
+
 }
 
 fun getDefaultDockerClient(): DefaultDockerClient {

@@ -27,6 +27,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import java.io.FileOutputStream
 import java.nio.file.Path
 
 /**
@@ -92,7 +93,7 @@ class HashCalculatorServer(fileStageArgs: FileStageArgs,
       val path = fetchChannel.receive()
       dockerStage.process(
           DockerTask(path, listOf("bash", "-c", "find /workspace -type f -exec md5sum {} \\; | sort -k 2 | md5sum > /workspace/${request.taskId}.stdout")),
-          dockerChannel)
+          dockerChannel, ConsoleOutput())
       val exitCode = dockerChannel.receive()
       if (exitCode == 0L) {
         val stdout = path.resolve("${request.taskId}.stdout").toFile().readText()
