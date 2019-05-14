@@ -1,6 +1,3 @@
-group 'com.bardsoftware.papeeria.backend'
-version "SNAPSHOT"
-
 buildscript {
     ext.kotlin_version = '1.3.+'
 
@@ -120,6 +117,8 @@ artifacts {
     libprotoExported libproto
 }
 
+group 'com.bardsoftware.papeeria.backend'
+version "SNAPSHOT"
 
 publishing {
     repositories {
