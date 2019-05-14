@@ -11,12 +11,14 @@ buildscript {
         }
     }
     dependencies {
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
         classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.+'
     }
 }
 
-apply plugin: 'kotlin'
+plugins {
+    id "org.jetbrains.kotlin.jvm"
+}
+
 apply plugin: 'java'
 apply plugin: 'application'
 apply plugin: 'com.google.protobuf'
