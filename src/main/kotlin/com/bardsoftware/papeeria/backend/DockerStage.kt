@@ -49,7 +49,7 @@ class DockerStage(val args: DockerStageArgs) {
       task: DockerTask, exitCodeChannel: Channel<Long>,
       out: BaseOutput,
       configCode: (hostConfig: HostConfig.Builder, containerConfig: ContainerConfig.Builder) -> Unit = { _, _ -> }) {
-    LOG.debug("Running docker task {}", task)
+    LOG.info("Running docker task {}", task)
 
     val hostConfigBuilder = HostConfig.builder()
         .appendBinds("${task.workspaceRoot.toAbsolutePath()}:/workspace")
@@ -68,9 +68,8 @@ class DockerStage(val args: DockerStageArgs) {
 
     GlobalScope.launch(dockerContext) {
       var containerId: String? = null
-
       try {
-        LOG.debug("Creating container: $containerConfig")
+        LOG.info("Creating container: $containerConfig")
         val creation = this@DockerStage.docker.createContainer(containerConfig)
         containerId = creation.id()
         LOG.debug("Container id=$containerId")
@@ -78,11 +77,13 @@ class DockerStage(val args: DockerStageArgs) {
         this@DockerStage.docker.startContainer(containerId)
         val exitCode = this@DockerStage.docker.waitContainer(containerId)
         LOG.debug("Exit code =$exitCode")
+        out.close()
         exitCodeChannel.send(exitCode.statusCode())
       } catch (e: Exception) {
         LOG.error("DockerStage failed", e)
       } finally {
         containerId?.let {
+          out.close()
           this@DockerStage.docker.stopContainer(it, 0)
           this@DockerStage.docker.removeContainer(it)
         }
@@ -90,14 +91,14 @@ class DockerStage(val args: DockerStageArgs) {
     }
   }
 
-  fun attachOutput(containerId: String, out: BaseOutput) {
+  private fun attachOutput(containerId: String, out: BaseOutput) {
     logsExecutor.submit {
       docker.attachContainer(containerId,
-                   DockerClient.AttachParameter.LOGS, DockerClient.AttachParameter.STDOUT,
-                   DockerClient.AttachParameter.STDERR, DockerClient.AttachParameter.STREAM)
-                 .attach(out.stdoutPipe, out.stderrPipe)
+            DockerClient.AttachParameter.LOGS, DockerClient.AttachParameter.STDOUT,
+            DockerClient.AttachParameter.STDERR, DockerClient.AttachParameter.STREAM)
+          .attach(out.stdoutPipe, out.stderrPipe)
+      out.attach()
     }
-    out.attach()
   }
 }
 
@@ -114,6 +115,7 @@ abstract class BaseOutput {
   val stderrPipe = PipedOutputStream(stderr)
 
   abstract fun attach()
+  open fun close() {}
 }
 
 class ConsoleOutput : BaseOutput() {
@@ -136,7 +138,7 @@ class ConsoleOutput : BaseOutput() {
   }
 }
 
-class FileOutput(val fileOut: PrintWriter) : BaseOutput() {
+class FileOutput(private val fileOut: PrintWriter) : BaseOutput() {
   override fun attach() {
     GlobalScope.launch(Dispatchers.IO) {
       Scanner(stdout).use { scanner ->
@@ -152,6 +154,10 @@ class FileOutput(val fileOut: PrintWriter) : BaseOutput() {
         }
       }
     }
+  }
+
+  override fun close() {
+    fileOut.close()
   }
 
 }
