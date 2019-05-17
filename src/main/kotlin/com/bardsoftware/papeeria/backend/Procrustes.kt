@@ -77,7 +77,7 @@ class HttpProcrustes(private val procrustesRoot: Path,
           "name" to req.id,
           "paid" to if (req.sizeMb > 64) "true" else "false",
           "withReset" to req.makeClean.toString()
-      )).awaitStringResponseResult()
+      )).timeout(5000).awaitStringResponseResult()
       result.fold({
         when (resp.statusCode) {
           HttpStatusCodes.STATUS_CODE_CREATED, HttpStatusCodes.STATUS_CODE_OK -> procrustesRoot.resolve(req.id)
