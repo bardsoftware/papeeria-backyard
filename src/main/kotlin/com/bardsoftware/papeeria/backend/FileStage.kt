@@ -37,6 +37,7 @@ typealias SaveTaskConsumer = (FileTask) -> Unit
 
 private val LOG = LoggerFactory.getLogger("base.file")
 
+class FileStageException(msg: String, cause: Throwable?) : Exception(msg, cause)
 /**
  * @author dbarashev@bardsoftware.com
  */
@@ -47,13 +48,30 @@ class FileStage(
   private val fetchContext = newFixedThreadPoolContext(args.postgresConnections, "FetchThread")
 
   suspend fun process(taskId: String, task: FileRequestDto, resultChannel: Channel<Path>) {
-    val volumePath = procrustes.makeVolume(ProcrustesVolumeRequest(id = taskId))
-    fetch(task = task, saveTaskConsumer = createSaveTaskConsumer(volumePath))
-    resultChannel.send(volumePath)
+    val responseChannel = Channel<ProcrustesVolumeResponse>()
+    responseChannel.invokeOnClose { ex ->
+      if (ex != null) {
+        resultChannel.close(FileStageException("Unexpected exception", ex))
+      }
+    }
+    procrustes.makeVolume(ProcrustesVolumeRequest(id = taskId), responseChannel)
+    val response = responseChannel.receive()
+    when (response.code) {
+      200 -> {
+        fetch(task = task, saveTaskConsumer = createSaveTaskConsumer(response.path))
+        resultChannel.send(response.path)
+      }
+      502, 504 -> {
+        resultChannel.close(FileStageException("Procrustes timed out or failed to connect", null))
+      }
+      else -> {
+        resultChannel.close(FileStageException("Procrustes failed with code ${response.code}: ${response.message}", null))
+      }
+    }
   }
 
-  suspend fun fetch(task: FileRequestDto, isFetchNeeded: FetchPredicate = { true },
-            saveTaskConsumer: SaveTaskConsumer) {
+  private suspend fun fetch(task: FileRequestDto, isFetchNeeded: FetchPredicate = { true },
+                            saveTaskConsumer: SaveTaskConsumer) {
     val taskChannel = Channel<FileTask>()
     for (file in task.fileList) {
       GlobalScope.launch(fetchContext) {
@@ -83,7 +101,7 @@ class FileStage(
     LOG.info("All saved")
   }
 
-  fun createSaveTaskConsumer(rootAbsPath: Path): SaveTaskConsumer {
+  private fun createSaveTaskConsumer(rootAbsPath: Path): SaveTaskConsumer {
     return { saveTask ->
       LOG.debug("Saving file {} at {}", saveTask.dto.name, rootAbsPath)
       if (saveTask.fetchError.first) {
