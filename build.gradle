@@ -128,7 +128,7 @@ publishing {
         }
     }
     publications {
-        mavenMidasProto(MavenPublication) {
+        mavenLibbackyardProto(MavenPublication) {
             artifactId = 'libbackyard-proto'
             artifact libproto
         }
