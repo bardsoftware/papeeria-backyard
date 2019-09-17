@@ -1,6 +1,6 @@
 <configuration debug="false" scan="true">
 
-    <property name="LOG_DIRECTORY" value="/var/log/cosmas" />
+    <property name="LOG_DIRECTORY" value="/var/log/libbackyard" />
     <!-- This will take the value of %X (which is MDC), insert it into [] and replace it
     with empty string if it turns out to be exactly [] (that is, MDC was empty) -->
     <variable scope="context" name="mdcValues" value="%replace([%X]){'\\[\\]', ''}"/>
