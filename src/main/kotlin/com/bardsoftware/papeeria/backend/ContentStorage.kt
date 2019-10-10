@@ -29,6 +29,7 @@ interface ContentStorage {
   @Throws(ContentStorageException::class)
   suspend fun getContent(file: FileProcessingBackendProto.FileDto): ByteArray?
 }
+
 class ContentStorageException : Exception {
   constructor() : super()
   constructor(msg: String) : super(msg)
@@ -40,8 +41,8 @@ object FailingContentStorage : ContentStorage {
   override suspend fun getContent(file: FileProcessingBackendProto.FileDto): ByteArray? {
     throw ContentStorageException("Not supposed to be called. Pass file contents in the protocol buffer")
   }
-
 }
+
 @Throws(IOException::class)
 fun inflate(contentStream: InputStream): ByteArray {
   val closer = Closer.create()
