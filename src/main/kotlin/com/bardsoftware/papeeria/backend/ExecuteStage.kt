@@ -29,32 +29,36 @@ class ExecuteStage {
   suspend fun process(
       task: ExecuteTask, exitCodeChannel: Channel<Long>,
       out: BaseOutput) {
-    LOG.info("Running execute task {}", task)
     GlobalScope.launch(EXECUTE_CONTEXT) {
+      LOG.info("Running execute task {}", task)
       try {
         val proc = ProcessBuilder(task.cmdLine)
             .directory(task.workspaceRoot.toFile())
             .redirectOutput(ProcessBuilder.Redirect.PIPE)
             .redirectError(ProcessBuilder.Redirect.PIPE)
             .start()
+        out.attach()
         val copyStdout = async {
           proc.inputStream.copyTo(out.stdoutPipe)
         }
         val copyStderr = async {
           proc.errorStream.copyTo(out.stderrPipe)
         }
-        proc.waitFor(60, TimeUnit.MINUTES)
+        proc.waitFor(1, TimeUnit.MINUTES)
         val exitCode = proc.exitValue()
         copyStdout.await()
         copyStderr.await()
 
         LOG.debug("Exit code =$exitCode")
-        out.close()
+        out.stdoutPipe.close()
+        out.stderrPipe.close()
         exitCodeChannel.send(exitCode.toLong())
+      } catch (e: InterruptedException) {
+        LOG.error("Process has been interrupted", e)
+        exitCodeChannel.send(1)
       } catch (e: Exception) {
-        LOG.error("DockerStage failed", e)
-      } finally {
-        out.close()
+        LOG.error("ExecuteStage failed", e)
+        exitCodeChannel.send(1)
       }
     }
 

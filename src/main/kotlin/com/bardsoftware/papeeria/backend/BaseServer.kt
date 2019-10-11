@@ -41,6 +41,7 @@ import kotlinx.coroutines.newFixedThreadPoolContext
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.concurrent.*
+import kotlin.system.exitProcess
 
 private val LOG = LoggerFactory.getLogger("base.server")
 
@@ -175,6 +176,10 @@ fun start(arg: BaseServerArgs, service: BackendService, serverName: String) = ma
     server
   }
   service.pubsub?.let {
+    if (arg.sub == null) {
+      System.err.println("Missing subscription name.")
+      exitProcess(1)
+    }
     LOG.info("Listening to PubSub subscription ${arg.sub!!}")
     val server = baseServer ?: BaseServer(arg = arg, grpcPort = arg.port).also {
       Runtime.getRuntime().addShutdownHook(Thread(Runnable {
