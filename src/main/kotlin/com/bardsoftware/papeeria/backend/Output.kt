@@ -17,6 +17,7 @@ package com.bardsoftware.papeeria.backend
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import org.slf4j.Logger
 import java.io.PipedInputStream
 import java.io.PipedOutputStream
 import java.io.PrintWriter
@@ -26,6 +27,8 @@ import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicInteger
 
 abstract class BaseOutput {
+  private val streamCounter = AtomicInteger(0)
+  protected val onClose = CompletableFuture<Unit>()
   protected val stdout = PipedInputStream()
   protected val stderr = PipedInputStream()
   val stdoutPipe = PipedOutputStream(stdout)
@@ -33,47 +36,52 @@ abstract class BaseOutput {
 
   abstract fun attach()
   open fun close() {}
-  abstract fun isClosed(): Boolean
-  abstract fun onClose(): Future<Unit>
-}
 
-open class JoinedOutput(private val out: PrintWriter) : BaseOutput() {
-  private val counter = AtomicInteger(2)  // we want to close fileOut once both stdout and stderr are exhausted.
-  private val onClose = CompletableFuture<Unit>()
+  fun isClosed(): Boolean {
+    return this.streamCounter.get() == 0
+  }
 
-  private fun copyStream(stream: PipedInputStream) {
+  fun onClose(): Future<Unit> {
+    return this.onClose
+  }
+
+  protected fun copyStream(stream: PipedInputStream, linePrinter: (String) -> Unit) {
+    streamCounter.incrementAndGet()
     GlobalScope.launch(Dispatchers.IO) {
       Scanner(stream).use { scanner ->
         while (scanner.hasNextLine()) {
-          scanner.nextLine().let {
-            println(it)
-            out.println(it)
-          }
+          scanner.nextLine().let(linePrinter)
         }
       }
-      if (counter.decrementAndGet() == 0) {
+      if (streamCounter.decrementAndGet() == 0) {
         close()
       }
     }
   }
 
+}
+
+open class JoinedOutput(private val out: PrintWriter) : BaseOutput() {
   override fun attach() {
-    copyStream(stdout)
-    copyStream(stderr)
+    copyStream(stdout, out::println)
+    copyStream(stderr, out::println)
   }
 
   override fun close() {
     out.close()
     onClose.complete(null)
   }
-
-  override fun isClosed(): Boolean {
-    return this.counter.get() == 0
-  }
-
-  override fun onClose(): Future<Unit> {
-    return this.onClose
-  }
 }
 
 class ConsoleOutput : JoinedOutput(PrintWriter(System.out))
+
+class LoggerOutput(private val logger: Logger) : BaseOutput() {
+  override fun attach() {
+    copyStream(stdout) {
+      logger.info(it)
+    }
+    copyStream(stderr) {
+      logger.warn(it)
+    }
+  }
+}
