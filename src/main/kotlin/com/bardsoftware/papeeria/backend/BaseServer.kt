@@ -41,6 +41,7 @@ import kotlinx.coroutines.newFixedThreadPoolContext
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.concurrent.*
+import kotlin.system.exitProcess
 
 private val LOG = LoggerFactory.getLogger("base.server")
 
@@ -174,16 +175,21 @@ fun start(arg: BaseServerArgs, service: BackendService, serverName: String) = ma
     }
     server
   }
-  service.pubsub?.let {
-    LOG.info("Listening to PubSub subscription ${arg.sub!!}")
-    val server = baseServer ?: BaseServer(arg = arg, grpcPort = arg.port).also {
-      Runtime.getRuntime().addShutdownHook(Thread(Runnable {
-        onShutdown.complete(null)
-      }))
-    }
-    server.subscribe(arg.sub!!, it)
-    service.responseChannel?.let { channel ->
-      server.consumeBackendResponses(channel)
+  service.pubsub?.let {pubsub ->
+    arg.sub?.let {sub ->
+      val server = baseServer ?: BaseServer(arg = arg, grpcPort = arg.port).also {
+        Runtime.getRuntime().addShutdownHook(Thread(Runnable {
+          onShutdown.complete(null)
+        }))
+      }
+      server.subscribe(sub, pubsub)
+      service.responseChannel?.let { channel ->
+        server.consumeBackendResponses(channel)
+      }
+      LOG.info("Listening to PubSub subscription $sub")
+    } ?: run {
+      System.err.println("Missing subscription name.")
+      exitProcess(1)
     }
   }
   onShutdown.get()

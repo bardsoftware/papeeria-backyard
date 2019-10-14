@@ -11,7 +11,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
- */
+*/
 package com.bardsoftware.papeeria.backend
 
 import com.spotify.docker.client.DefaultDockerClient
@@ -20,18 +20,13 @@ import com.spotify.docker.client.messages.ContainerConfig
 import com.spotify.docker.client.messages.HostConfig
 import com.xenomachina.argparser.ArgParser
 import com.xenomachina.argparser.default
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.newSingleThreadContext
 import org.slf4j.LoggerFactory
-import java.io.PipedInputStream
-import java.io.PipedOutputStream
-import java.io.PrintWriter
 import java.math.BigDecimal
 import java.nio.file.Path
-import java.util.*
 import java.util.concurrent.Executors
 
 private val NANO = 1000000000L
@@ -106,60 +101,6 @@ class DockerStageArgs(parser: ArgParser) {
   val dockerImage by parser.storing("--docker-image", help = "Docker image to run").default { "" }
   val dockerCpu by parser.storing("--docker-cpus", help = "Container CPU limit").default { "1.0" }
   val dockerMem by parser.storing("--docker-mem", help = "Container memory limit in megabytes").default { "64" }
-}
-
-abstract class BaseOutput {
-  protected val stdout = PipedInputStream()
-  protected val stderr = PipedInputStream()
-  val stdoutPipe = PipedOutputStream(stdout)
-  val stderrPipe = PipedOutputStream(stderr)
-
-  abstract fun attach()
-  open fun close() {}
-}
-
-class ConsoleOutput : BaseOutput() {
-  override fun attach() {
-      // Print docker outputs and errors
-      GlobalScope.launch(Dispatchers.IO) {
-        Scanner(stdout).use { scanner ->
-          while (scanner.hasNextLine()) {
-            println(scanner.nextLine())
-          }
-        }
-      }
-      GlobalScope.launch(Dispatchers.IO) {
-        Scanner(stderr).use { scanner ->
-          while (scanner.hasNextLine()) {
-            println(scanner.nextLine())
-          }
-        }
-      }
-  }
-}
-
-class FileOutput(private val fileOut: PrintWriter) : BaseOutput() {
-  override fun attach() {
-    GlobalScope.launch(Dispatchers.IO) {
-      Scanner(stdout).use { scanner ->
-        while (scanner.hasNextLine()) {
-          fileOut.println(scanner.nextLine())
-        }
-      }
-    }
-    GlobalScope.launch(Dispatchers.IO) {
-      Scanner(stderr).use { scanner ->
-        while (scanner.hasNextLine()) {
-          fileOut.println(scanner.nextLine())
-        }
-      }
-    }
-  }
-
-  override fun close() {
-    fileOut.close()
-  }
-
 }
 
 fun getDefaultDockerClient(): DefaultDockerClient {
