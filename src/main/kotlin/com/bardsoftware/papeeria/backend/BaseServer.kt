@@ -175,20 +175,21 @@ fun start(arg: BaseServerArgs, service: BackendService, serverName: String) = ma
     }
     server
   }
-  service.pubsub?.let {
-    if (arg.sub == null) {
+  service.pubsub?.let {pubsub ->
+    arg.sub?.let {sub ->
+      val server = baseServer ?: BaseServer(arg = arg, grpcPort = arg.port).also {
+        Runtime.getRuntime().addShutdownHook(Thread(Runnable {
+          onShutdown.complete(null)
+        }))
+      }
+      server.subscribe(sub, pubsub)
+      service.responseChannel?.let { channel ->
+        server.consumeBackendResponses(channel)
+      }
+      LOG.info("Listening to PubSub subscription $sub")
+    } ?: run {
       System.err.println("Missing subscription name.")
       exitProcess(1)
-    }
-    LOG.info("Listening to PubSub subscription ${arg.sub!!}")
-    val server = baseServer ?: BaseServer(arg = arg, grpcPort = arg.port).also {
-      Runtime.getRuntime().addShutdownHook(Thread(Runnable {
-        onShutdown.complete(null)
-      }))
-    }
-    server.subscribe(arg.sub!!, it)
-    service.responseChannel?.let { channel ->
-      server.consumeBackendResponses(channel)
     }
   }
   onShutdown.get()

@@ -49,7 +49,7 @@ class ExecuteStage {
         copyStdout.await()
         copyStderr.await()
 
-        LOG.debug("Exit code =$exitCode")
+        LOG.debug("Exit code = $exitCode")
         out.stdoutPipe.close()
         out.stderrPipe.close()
         exitCodeChannel.send(exitCode.toLong())

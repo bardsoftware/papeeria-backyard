@@ -21,6 +21,8 @@ import java.io.PipedInputStream
 import java.io.PipedOutputStream
 import java.io.PrintWriter
 import java.util.*
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicInteger
 
 abstract class BaseOutput {
@@ -31,50 +33,47 @@ abstract class BaseOutput {
 
   abstract fun attach()
   open fun close() {}
+  abstract fun isClosed(): Boolean
+  abstract fun onClose(): Future<Unit>
 }
 
-class ConsoleOutput : BaseOutput() {
-  override fun attach() {
-    // Print docker outputs and errors
-    GlobalScope.launch(Dispatchers.IO) {
-      Scanner(stdout).use { scanner ->
-        while (scanner.hasNextLine()) {
-          println(scanner.nextLine())
-        }
-      }
-    }
-    GlobalScope.launch(Dispatchers.IO) {
-      Scanner(stderr).use { scanner ->
-        while (scanner.hasNextLine()) {
-          println(scanner.nextLine())
-        }
-      }
-    }
-  }
-}
-
-class FileOutput(private val fileOut: PrintWriter) : BaseOutput() {
-  private val counter = AtomicInteger(2)
+open class JoinedOutput(private val out: PrintWriter) : BaseOutput() {
+  private val counter = AtomicInteger(2)  // we want to close fileOut once both stdout and stderr are exhausted.
+  private val onClose = CompletableFuture<Unit>()
 
   private fun copyStream(stream: PipedInputStream) {
     GlobalScope.launch(Dispatchers.IO) {
       Scanner(stream).use { scanner ->
         while (scanner.hasNextLine()) {
           scanner.nextLine().let {
-            fileOut.println(it)
+            println(it)
+            out.println(it)
           }
         }
       }
       if (counter.decrementAndGet() == 0) {
-        fileOut.close()
+        close()
       }
     }
   }
+
   override fun attach() {
     copyStream(stdout)
     copyStream(stderr)
   }
 
   override fun close() {
+    out.close()
+    onClose.complete(null)
+  }
+
+  override fun isClosed(): Boolean {
+    return this.counter.get() == 0
+  }
+
+  override fun onClose(): Future<Unit> {
+    return this.onClose
   }
 }
+
+class ConsoleOutput : JoinedOutput(PrintWriter(System.out))
