@@ -26,15 +26,32 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicInteger
 
-abstract class BaseOutput {
-  private val streamCounter = AtomicInteger(0)
-  protected val onClose = CompletableFuture<Unit>()
-  protected val stdout = PipedInputStream()
-  protected val stderr = PipedInputStream()
-  val stdoutPipe = PipedOutputStream(stdout)
-  val stderrPipe = PipedOutputStream(stderr)
+typealias StreamReader = Pair<PipedInputStream, (String) -> Any>
 
-  abstract fun attach()
+abstract class BaseOutput protected constructor(
+    private val stdoutReader: StreamReader? = null,
+    private val stderrReader: StreamReader? = null) {
+  private val streamCounter: AtomicInteger = AtomicInteger(0)
+  protected val onClose = CompletableFuture<Unit>()
+  val stdoutPipe: PipedOutputStream
+  val stderrPipe: PipedOutputStream
+
+  init {
+    this.stdoutPipe = PipedOutputStream(stdoutReader?.let {
+      this.streamCounter.incrementAndGet()
+      it.first
+    } ?: PipedInputStream())
+    this.stderrPipe = PipedOutputStream(stderrReader?.let {
+      this.streamCounter.incrementAndGet()
+      it.first
+    } ?: PipedInputStream())
+  }
+
+  fun attach() {
+    this.stdoutReader?.let { (stream, out) -> copyStream(stream, out) }
+    this.stderrReader?.let { (stream, out) -> copyStream(stream, out) }
+  }
+
   open fun close() {}
 
   fun isClosed(): Boolean {
@@ -45,8 +62,7 @@ abstract class BaseOutput {
     return this.onClose
   }
 
-  protected fun copyStream(stream: PipedInputStream, linePrinter: (String) -> Unit) {
-    streamCounter.incrementAndGet()
+  private fun copyStream(stream: PipedInputStream, linePrinter: (String) -> Any) {
     GlobalScope.launch(Dispatchers.IO) {
       Scanner(stream).use { scanner ->
         while (scanner.hasNextLine()) {
@@ -58,14 +74,11 @@ abstract class BaseOutput {
       }
     }
   }
-
 }
 
-open class JoinedOutput(private val out: PrintWriter) : BaseOutput() {
-  override fun attach() {
-    copyStream(stdout, out::println)
-    copyStream(stderr, out::println)
-  }
+open class JoinedOutput(private val out: PrintWriter) : BaseOutput(
+    stdoutReader = PipedInputStream() to { it: String -> out.println(it) },
+    stderrReader = PipedInputStream() to { it: String -> out.println(it) }) {
 
   override fun close() {
     out.close()
@@ -75,13 +88,6 @@ open class JoinedOutput(private val out: PrintWriter) : BaseOutput() {
 
 class ConsoleOutput : JoinedOutput(PrintWriter(System.out))
 
-class LoggerOutput(private val logger: Logger) : BaseOutput() {
-  override fun attach() {
-    copyStream(stdout) {
-      logger.info(it)
-    }
-    copyStream(stderr) {
-      logger.warn(it)
-    }
-  }
-}
+class LoggerOutput(logger: Logger) : BaseOutput(
+    stdoutReader = PipedInputStream() to logger::info,
+    stderrReader = PipedInputStream() to logger::warn)
