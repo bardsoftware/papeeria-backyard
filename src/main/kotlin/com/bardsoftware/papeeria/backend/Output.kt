@@ -17,6 +17,7 @@ package com.bardsoftware.papeeria.backend
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import org.slf4j.Logger
 import java.io.PipedInputStream
 import java.io.PipedOutputStream
 import java.io.PrintWriter
@@ -25,55 +26,68 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicInteger
 
-abstract class BaseOutput {
-  protected val stdout = PipedInputStream()
-  protected val stderr = PipedInputStream()
-  val stdoutPipe = PipedOutputStream(stdout)
-  val stderrPipe = PipedOutputStream(stderr)
+typealias StreamReader = Pair<PipedInputStream, (String) -> Any>
 
-  abstract fun attach()
+abstract class BaseOutput protected constructor(
+    private val stdoutReader: StreamReader? = null,
+    private val stderrReader: StreamReader? = null) {
+  private val streamCounter: AtomicInteger = AtomicInteger(0)
+  protected val onClose = CompletableFuture<Unit>()
+  val stdoutPipe: PipedOutputStream
+  val stderrPipe: PipedOutputStream
+
+  init {
+    this.stdoutPipe = PipedOutputStream(stdoutReader?.let {
+      this.streamCounter.incrementAndGet()
+      it.first
+    } ?: PipedInputStream())
+    this.stderrPipe = PipedOutputStream(stderrReader?.let {
+      this.streamCounter.incrementAndGet()
+      it.first
+    } ?: PipedInputStream())
+  }
+
+  fun attach() {
+    this.stdoutReader?.let { (stream, out) -> copyStream(stream, out) }
+    this.stderrReader?.let { (stream, out) -> copyStream(stream, out) }
+  }
+
   open fun close() {}
-  abstract fun isClosed(): Boolean
-  abstract fun onClose(): Future<Unit>
-}
 
-open class JoinedOutput(private val out: PrintWriter) : BaseOutput() {
-  private val counter = AtomicInteger(2)  // we want to close fileOut once both stdout and stderr are exhausted.
-  private val onClose = CompletableFuture<Unit>()
+  fun isClosed(): Boolean {
+    return this.streamCounter.get() == 0
+  }
 
-  private fun copyStream(stream: PipedInputStream) {
+  fun onClose(): Future<Unit> {
+    return this.onClose
+  }
+
+  private fun copyStream(stream: PipedInputStream, linePrinter: (String) -> Any) {
     GlobalScope.launch(Dispatchers.IO) {
       Scanner(stream).use { scanner ->
         while (scanner.hasNextLine()) {
-          scanner.nextLine().let {
-            println(it)
-            out.println(it)
-          }
+          scanner.nextLine().let(linePrinter)
         }
       }
-      if (counter.decrementAndGet() == 0) {
+      if (streamCounter.decrementAndGet() == 0) {
         close()
       }
     }
   }
+}
 
-  override fun attach() {
-    copyStream(stdout)
-    copyStream(stderr)
-  }
+open class JoinedOutput(private val out: PrintWriter) : BaseOutput(
+    stdoutReader = PipedInputStream() to { it: String -> out.println(it) },
+    stderrReader = PipedInputStream() to { it: String -> out.println(it) }) {
 
   override fun close() {
     out.close()
     onClose.complete(null)
   }
-
-  override fun isClosed(): Boolean {
-    return this.counter.get() == 0
-  }
-
-  override fun onClose(): Future<Unit> {
-    return this.onClose
-  }
 }
 
 class ConsoleOutput : JoinedOutput(PrintWriter(System.out))
+
+class LoggerOutput(logger: Logger) : BaseOutput(
+    stdoutReader = PipedInputStream() to logger::info,
+    stderrReader = PipedInputStream() to logger::warn)
