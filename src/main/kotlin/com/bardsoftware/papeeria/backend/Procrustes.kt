@@ -24,6 +24,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.newFixedThreadPoolContext
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.IOException
 import java.net.ConnectException
@@ -104,6 +105,7 @@ class HttpProcrustes(private val procrustesRoot: Path,
         }
       }, {
         val cause = it.exception
+        LOG.error("Procrustes call failed", it)
         when (cause) {
           is SocketTimeoutException -> {
             Fuel.reset()
@@ -125,3 +127,4 @@ class HttpProcrustes(private val procrustesRoot: Path,
   }
 
 }
+private val LOG = LoggerFactory.getLogger("base.file")

@@ -51,6 +51,7 @@ class FileStage(
     val responseChannel = Channel<ProcrustesVolumeResponse>()
     responseChannel.invokeOnClose { ex ->
       if (ex != null) {
+        LOG.error("Channel closed with exception", ex)
         resultChannel.close(FileStageException("Unexpected exception", ex))
       }
     }
