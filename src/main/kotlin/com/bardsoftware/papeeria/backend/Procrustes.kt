@@ -90,7 +90,7 @@ class HttpProcrustes(private val procrustesRoot: Path,
           "password" to procrustesPassword,
           "namespace" to "tex",
           "name" to req.id,
-          "paid" to if (req.sizeMb > 64) "true" else "false",
+          "quotaDiskMb" to req.sizeMb,
           "withReset" to req.makeClean.toString()
       )).timeout(10000).awaitStringResponseResult()
       result.fold({

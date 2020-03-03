@@ -32,7 +32,7 @@ configurations {
 
 dependencies {
     libprotoImplementation 'com.google.protobuf:protobuf-java:3.+'
-    libprotoImplementation 'io.grpc:grpc-protobuf:1.25.+'
+    libprotoImplementation "io.grpc:grpc-protobuf:$grpc_version"
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.1.+'
     compile "com.xenomachina:kotlin-argparser:2.+"
