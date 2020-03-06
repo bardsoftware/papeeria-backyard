@@ -126,7 +126,7 @@ artifacts {
 }
 
 group 'com.bardsoftware.papeeria.backend'
-version "SNAPSHOT"
+version "2020.03.06.1"
 
 publishing {
     repositories {
