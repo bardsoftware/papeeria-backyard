@@ -40,7 +40,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.newFixedThreadPoolContext
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.io.InputStream
 import java.util.concurrent.*
+import java.util.function.Supplier
 import kotlin.system.exitProcess
 
 private val LOG = LoggerFactory.getLogger("base.server")
@@ -59,8 +61,8 @@ open class BaseServer(
     grpcPort: Int,
     service: BindableService? = null,
     val executor: ExecutorService = DEFAULT_EXECUTOR,
-    sslCert: File? = null,
-    sslKey: File? = null) {
+    sslCert: Supplier<InputStream>? = null,
+    sslKey: Supplier<InputStream>? = null) {
 
   private val server: Server
   private val publisher: Publisher?
@@ -70,9 +72,7 @@ open class BaseServer(
     var builder = NettyServerBuilder.forPort(grpcPort)
     service?.let { builder.addService(it) }
     if (sslCert != null && sslKey != null) {
-      Preconditions.checkState(sslCert.exists(), "SSL certificate file doesn't exists: %s", sslCert)
-      Preconditions.checkState(sslKey.exists(), "SSL key file doesn't exists: %s", sslKey)
-      builder = builder.useTransportSecurity(sslCert, sslKey)
+      builder = builder.useTransportSecurity(sslCert.get(), sslKey.get())
     }
     builder = builder.executor(this.executor)
     this.server = builder.build()
@@ -160,8 +160,8 @@ fun start(arg: BaseServerArgs, service: BackendService, serverName: String) = ma
               arg = arg,
               grpcPort = arg.port,
               service = it,
-              sslCert = File(arg.certChain),
-              sslKey = File(arg.privateKey)
+              sslCert = getStream(arg.certChain),
+              sslKey = getStream(arg.privateKey)
           )
         } else {
           LOG.info("Starting $serverName in INSECURE mode")

@@ -38,6 +38,7 @@ dependencies {
     compile "com.xenomachina:kotlin-argparser:2.+"
     compile "com.google.cloud:google-cloud-core:1.+"
     compile "com.google.cloud:google-cloud-pubsub:1.+"
+    compile "com.google.cloud:google-cloud-secretmanager:0.+"
     compile 'com.google.guava:guava:28.+'
 
     compile 'com.github.kittinunf.fuel:fuel:2.+'
