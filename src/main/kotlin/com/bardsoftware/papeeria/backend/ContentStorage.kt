@@ -64,9 +64,10 @@ fun inflate(compressed: ByteArray): ByteArray {
 
 class PostgresContentStorage(args: FileStageArgs) : ContentStorage {
   private val dataSource = HikariDataSource().apply {
+    Class.forName("org.postgresql.Driver")
     username = args.postgresUser
     password = args.postgresPassword
-    jdbcUrl = "jdbc:postgresql://${args.postgresAddress}"
+    jdbcUrl = "jdbc:postgresql://${args.postgresAddress}/${args.postgresUser}"
   }
 
   override suspend fun getContent(file: FileProcessingBackendProto.FileDto): ByteArray? {
