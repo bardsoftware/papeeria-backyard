@@ -71,10 +71,10 @@ class FileStage(
     }
   }
 
-  private suspend fun fetch(task: FileRequestDto, isFetchNeeded: FetchPredicate = { true },
-                            saveTaskConsumer: SaveTaskConsumer) {
-    val taskChannel = Channel<FileTask>()
-    for (file in task.fileList) {
+  fun fetch(tasks: List<FileDto>,
+                    taskChannel: Channel<FileTask>,
+                    isFetchNeeded: FetchPredicate = { true }) {
+    tasks.forEach { file ->
       GlobalScope.launch(fetchContext) {
         if (!file.contents.isEmpty) {
           taskChannel.send(FileTask(file, file.contents.toByteArray(), isSavedLocally = false))
@@ -88,6 +88,12 @@ class FileStage(
         }
       }
     }
+  }
+  private suspend fun fetch(task: FileRequestDto,
+                            isFetchNeeded: FetchPredicate = { true },
+                            saveTaskConsumer: SaveTaskConsumer) {
+    val taskChannel = Channel<FileTask>()
+    fetch(task.fileList, taskChannel)
 
     val barrier = CountDownLatch(task.fileList.size)
     repeat(min(this.args.postgresConnections, task.fileList.size)) {
