@@ -7,15 +7,13 @@ buildscript {
     }
     dependencies {
         classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.+'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
 
-plugins {
-    id "org.jetbrains.kotlin.jvm" version "1.3.61"
-}
-
 apply plugin: 'java'
-apply plugin: 'application'
+apply plugin: 'kotlin'
+//apply plugin: 'application'
 apply plugin: 'com.google.protobuf'
 apply plugin: 'maven-publish'
 
@@ -33,20 +31,20 @@ configurations {
 dependencies {
     libprotoImplementation 'com.google.protobuf:protobuf-java:3.+'
     libprotoImplementation "io.grpc:grpc-protobuf:$grpc_version"
-    compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
-    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.1.+'
-    compile "com.xenomachina:kotlin-argparser:2.+"
-    compile "com.google.cloud:google-cloud-core:1.+"
-    compile "com.google.cloud:google-cloud-pubsub:1.+"
-    compile "com.google.cloud:google-cloud-secretmanager:0.+"
-    compile 'com.google.guava:guava:28.+'
+    libprotoImplementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+    libprotoImplementation "com.google.cloud:google-cloud-core:1.+"
+    libprotoImplementation "com.google.cloud:google-cloud-secretmanager:0.+"
+    libprotoImplementation 'org.slf4j:slf4j-api:1.7.+'
 
+    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.1.+'
+    compile "com.google.cloud:google-cloud-pubsub:1.+"
+    compile 'com.google.guava:guava:28.+'
+    compile "com.xenomachina:kotlin-argparser:2.+"
     compile 'com.github.kittinunf.fuel:fuel:2.+'
     compile 'com.github.kittinunf.fuel:fuel-coroutines:2.+'
     compile "com.spotify:docker-client:8.+"
     compile 'com.zaxxer:HikariCP:2.7.+'
     compile 'org.postgresql:postgresql:42.1.1'
-    compile 'org.slf4j:slf4j-api:1.7.+'
     compile 'ch.qos.logback:logback-classic:1.2.+'
     compile 'ch.qos.logback:logback-core:1.2.+'
     compile "io.grpc:grpc-core:$grpc_version"
@@ -74,6 +72,10 @@ sourceSets {
         java {
             srcDirs "$projectDir/src/generated/main/java"
         }
+        kotlin {
+            srcDirs "$projectDir/src/main/kotlin"
+            include "com/bardsoftware/papeeria/backend/SSL.kt"
+        }
     }
 }
 
@@ -99,15 +101,15 @@ compileKotlin {
 }
 compileKotlin.dependsOn += ["generateProto"]
 
-mainClassName = 'com.bardsoftware.papeeria.backend.demo.HashCalculatorBackendKt'
-
-run {
-    jvmArgs '-Dkotlinx.coroutines.debug'
-}
-
-jar {
-    exclude "com/bardsoftware/papeeria/backend/demo/**"
-}
+//mainClassName = 'com.bardsoftware.papeeria.backend.demo.HashCalculatorBackendKt'
+//
+//run {
+//    jvmArgs '-Dkotlinx.coroutines.debug'
+//}
+//
+//jar {
+//    exclude "com/bardsoftware/papeeria/backend/demo/**"
+//}
 
 task libproto(type: Jar) {
     dependsOn = ["compileLibprotoJava"]
@@ -127,7 +129,7 @@ artifacts {
 }
 
 group 'com.bardsoftware.papeeria.backend'
-version "2020.03.06.1"
+version "2020.03.20"
 
 publishing {
     repositories {
