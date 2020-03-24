@@ -33,11 +33,14 @@ sourceSets {
 
 
 dependencies {
+    api "com.bardsoftware.papeeria.backend:libbackyard-proto:$_version"
+
     api "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     api 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.1.+'
     api "com.google.cloud:google-cloud-pubsub:1.+"
     api 'com.google.guava:guava:28.+'
     api "com.spotify:docker-client:8.+"
+
     implementation "com.xenomachina:kotlin-argparser:2.+"
     implementation 'com.github.kittinunf.fuel:fuel:2.+'
     implementation 'com.github.kittinunf.fuel:fuel-coroutines:2.+'
@@ -51,7 +54,6 @@ dependencies {
     implementation "io.grpc:grpc-netty-shaded:$grpc_version"
     implementation "io.netty:netty-tcnative-boringssl-static:2.0.28.Final"
 
-    implementation "com.bardsoftware.papeeria.backend:libbackyard-proto:$_version"
     exportedClasspath configurations.implementation
 
 
