@@ -25,6 +25,9 @@ configurations {
 
 sourceSets {
     main {
+        kotlin {
+            exclude "**/demo/**"
+        }
     }
 }
 
@@ -48,7 +51,7 @@ dependencies {
     implementation "io.grpc:grpc-netty-shaded:$grpc_version"
     implementation "io.netty:netty-tcnative-boringssl-static:2.0.28.Final"
 
-    implementation 'com.bardsoftware.papeeria.backend:libbackyard-proto:2020.+'
+    implementation "com.bardsoftware.papeeria.backend:libbackyard-proto:$_version"
     exportedClasspath configurations.implementation
 
 
