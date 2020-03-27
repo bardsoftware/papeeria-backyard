@@ -63,10 +63,22 @@ fun inflate(compressed: ByteArray): ByteArray {
 }
 
 class PostgresContentStorage(args: FileStageArgs) : ContentStorage {
+  val pgPassword = if (args.postgresPassword.startsWith("secret:")) {
+    val components = args.postgresPassword.split(":".toRegex()).toTypedArray()
+    if (components.size != 3) {
+      LOG.error("Secret Manager URLs are supposed to look like secret:SECRET_ID:VERSION_ID")
+      throw RuntimeException("Can't initialize postgres password: malformed secret manager URL")
+    }
+    readSecret(components[1], components[2])?.let {
+      it.get().reader().readText()
+    }
+  } else {
+    args.postgresPassword
+  }
   private val dataSource = HikariDataSource().apply {
     Class.forName("org.postgresql.Driver")
     username = args.postgresUser
-    password = args.postgresPassword
+    password = pgPassword
     jdbcUrl = "jdbc:postgresql://${args.postgresAddress}/${args.postgresUser}"
   }
 

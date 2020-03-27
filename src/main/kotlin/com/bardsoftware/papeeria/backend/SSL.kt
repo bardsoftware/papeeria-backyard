@@ -68,7 +68,7 @@ private fun getProjectId(): String? {
   return ServiceOptions.getDefaultProjectId()
 }
 
-private fun readSecret(secretId: String, versionId: String): Supplier<InputStream>? {
+fun readSecret(secretId: String, versionId: String): Supplier<InputStream>? {
   try {
     create().use { client ->
       val name: SecretVersionName = SecretVersionName.of(getProjectId(), secretId, versionId)
