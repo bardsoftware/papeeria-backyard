@@ -2,8 +2,8 @@ import java.text.SimpleDateFormat
 
 buildscript {
     ext {
-        grpc_version = "1.24.1"
-        kotlin_version = "1.3.71"
+        grpc_version = "1.32.2"
+        kotlin_version = "1.4.10"
         this_version = project.property("version") ?: new SimpleDateFormat("yyyy.MM.dd").format(new Date())
     }
     repositories {
@@ -44,10 +44,10 @@ sourceSets {
 }
 
 dependencies {
-    api "com.google.cloud:google-cloud-core:1.93.3"
-    api "com.google.cloud:google-cloud-secretmanager:0.3.0"
+    api "com.google.cloud:google-cloud-core:1.92.+"
+    api "com.google.cloud:google-cloud-secretmanager:1.2.3"
 
-    implementation 'com.google.protobuf:protobuf-java:3.11.4'
+    implementation 'com.google.protobuf:protobuf-java:3.12.4'
     implementation "io.grpc:grpc-protobuf:$grpc_version"
     api "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     api 'org.slf4j:slf4j-api:1.7.30'
