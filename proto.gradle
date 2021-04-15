@@ -2,8 +2,8 @@ import java.text.SimpleDateFormat
 
 buildscript {
     ext {
-        grpc_version = "1.32.2"
-        kotlin_version = "1.4.10"
+        grpc_version = "1.36.0"
+        kotlin_version = "1.4.32"
         this_version = project.property("version") ?: new SimpleDateFormat("yyyy.MM.dd").format(new Date())
     }
     repositories {
@@ -68,6 +68,10 @@ protobuf {
             grpc {}
         }
     }
+}
+
+compileKotlin {
+    kotlinOptions.jvmTarget = "1.8"
 }
 
 jar {

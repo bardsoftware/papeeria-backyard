@@ -61,8 +61,11 @@ dependencies {
     testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.+'
 }
 
+sourceCompatibility = 11
+targetCompatibility = 11
+
 compileKotlin {
-    kotlinOptions.jvmTarget = "1.8"
+    kotlinOptions.jvmTarget = "11"
 }
 
 group 'com.bardsoftware.papeeria.backend'
