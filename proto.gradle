@@ -4,7 +4,7 @@ buildscript {
     ext {
         grpc_version = "1.36.0"
         kotlin_version = "1.5.0"
-        this_version = new SimpleDateFormat("yyyy.MM.dd").format(new Date())
+        this_version = project.property("version") ?: new SimpleDateFormat("yyyy.MM.dd").format(new Date())
     }
     repositories {
         mavenCentral()
@@ -48,7 +48,7 @@ sourceSets {
 
 dependencies {
     api "com.google.cloud:google-cloud-core:1.92.+"
-    api "com.google.cloud:google-cloud-secretmanager:1.2.3"
+    api "com.google.cloud:google-cloud-secretmanager:1.4.+"
 
     implementation 'com.google.protobuf:protobuf-java:3.12.4'
     implementation "io.grpc:grpc-protobuf:$grpc_version"
