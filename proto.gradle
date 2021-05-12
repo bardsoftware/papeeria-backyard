@@ -4,7 +4,7 @@ buildscript {
     ext {
         grpc_version = "1.36.0"
         kotlin_version = "1.5.0"
-        this_version = project.property("version") ?: new SimpleDateFormat("yyyy.MM.dd").format(new Date())
+        this_version = project.hasProperty("version") ? project.property("version"): new SimpleDateFormat("yyyy.MM.dd").format(new Date())
     }
     repositories {
         mavenCentral()
