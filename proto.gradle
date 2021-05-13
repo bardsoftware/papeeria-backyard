@@ -4,7 +4,7 @@ buildscript {
     ext {
         grpc_version = "1.36.0"
         kotlin_version = "1.5.0"
-        this_version = project.findProperty "ver" ?: new SimpleDateFormat("yyyy.MM.dd").format(new Date())
+        this_version = project.hasProperty("ver") ? project["ver"] : new SimpleDateFormat("yyyy.MM.dd").format(new Date())
     }
     repositories {
         mavenCentral()
@@ -29,7 +29,6 @@ targetCompatibility = "1.8"
 repositories {
     mavenLocal()
     mavenCentral()
-    jcenter()
 }
 
 sourceSets {
@@ -103,4 +102,6 @@ publishing {
     }
 }
 
-
+publishToMavenLocal.doLast {
+    println("Published version $this_version")
+}
