@@ -1,10 +1,28 @@
 import java.text.SimpleDateFormat
 
+def read_versions() {
+    def props = new Properties()
+    props.load(new FileInputStream("${System.getenv("REPO_HOME")}/versions.properties"))
+    return props
+}
+
+def papeeriaVersion(String defaultVersion) {
+    def versions = read_versions()
+    if (project.hasProperty("ver")) {
+        return project["ver"]
+    }
+    if (versions["papeeria"] != null && !String.valueOf(versions["papeeria"]).isAllWhitespace()) {
+        return versions["papeeria"]
+    }
+    return defaultVersion
+}
+
+def this_version = papeeriaVersion(new SimpleDateFormat("yyyy.MM.dd").format(new Date()))
+
 buildscript {
     ext {
         grpc_version = "1.36.0"
         kotlin_version = "1.5.0"
-        this_version = project.hasProperty("ver") ? project["ver"] : new SimpleDateFormat("yyyy.MM.dd").format(new Date())
     }
     repositories {
         mavenCentral()
